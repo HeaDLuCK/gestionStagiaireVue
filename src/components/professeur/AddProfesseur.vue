@@ -6,8 +6,12 @@ import { ref, onMounted, reactive } from 'vue'
 import { profNumeroGenere, matiereSelect, stagiaireSelect } from '../../services/formsService.js'
 import { ajouterProfesseur } from '../../services/professeurService';
 import { useRouter } from 'vue-router';
+import { useToast } from 'primevue/usetoast';
+
+const toast = useToast();
 const router = useRouter();
 const props = defineProps(['status', 'updateStatus'])
+const error = ref({})
 
 const object = reactive({})
 
@@ -33,13 +37,26 @@ onMounted(() => {
 const onSubmitFunction = () => {
     object.stagiaire_ids = selectedStagiaires.value.map(elem => elem.id)
     object.matiere_id = matiere.value.id
-    ajouterProfesseur(object).then(promise => { console.log(promise); })
-        .then(() => { router.go() })
+    ajouterProfesseur(object).then(promise => {
+        toast.add({ severity: 'success', summary: 'Success', detail: promise.data.message, life: 4500 })
+    })
+        .then(() => {
+            setTimeout(() => {
+                router.go()
+            }, 1000);
+        }).catch(e => {
+            if (!e.response.data?.message) {
+                error.value = { ...error.value, ...e.response.data }
+            } else {
+                toast.add({ severity: 'error', summary: 'Error', detail: e.response.data.message, life: 4500 })
+            };
+        })
 
 }
 
 </script>
 <template>
+    <Toast />
     <div class="bg-[#0000002a] fixed w-[100%] left-0 top-0 min-h-[100vh] z-20 flex items-center justify-center"
         @click="props.updateStatus(false)">
         <div class="w-[50%] bg-white py-5 px-3 rounded-lg shadow-lg" @click="(e) => { e.stopPropagation() }">
@@ -50,7 +67,7 @@ const onSubmitFunction = () => {
 
             <div class=" flex flex-col px-3  gap-2 py-9">
                 <div class="flex flex-col gap-3">
-                    <label for="numero">Numéro</label>
+                    <label for="numero" class="after:content-['*'] after:ml-0.5 after:text-red-500">Numéro</label>
                     <div class="flex items-center relative">
                         <input id="numero" type="text"
                             class="border flex-1 border-green-300 focus:outline-none rounded-md p-2" v-model="object.numero"
@@ -59,14 +76,18 @@ const onSubmitFunction = () => {
                             class="absolute right-0 h-full w-[60px] flex items-center justify-center bg-green-500 rounded-r-md cursor-pointer">
                             <svg-icon class="text-white" type="mdi" :size="26" :path="mdiAutorenew" />
                         </div>
-
                     </div>
+                    <span class="text-red-500 text-xs">{{ !object?.numero ? error?.numero : '' }}</span>
                 </div>
                 <div class="flex  gap-3">
                     <div class="flex flex-1  flex-col">
-                        <label for="nom">Nom</label>
-                        <input v-model="object.nom" id="nom" type="text"
-                            class="border border-green-300 focus:outline-none rounded-md p-2">
+                        <label for="nom" class="after:content-['*'] after:ml-0.5 after:text-red-500">Nom</label>
+                        <input v-model="object.nom" id="nom" type="text" @input="(e) => {
+                            if (e.target.value) {
+                                delete error.nom
+                            }
+                        }" class="border border-green-300 focus:outline-none rounded-md p-2">
+                        <span class="text-red-500 text-xs">{{ error?.nom }}</span>
                     </div>
                     <div class="flex flex-1  flex-col">
                         <label for="prenom">Prénom</label>
@@ -104,7 +125,8 @@ const onSubmitFunction = () => {
                             }" />
                     </div>
                     <div class="flex flex-1  flex-col">
-                        <label for="select2">Select matiere</label>
+                        <label for="select2" class="after:content-['*'] after:ml-0.5 after:text-red-500">Select
+                            matiere</label>
                         <Dropdown v-model="matiere" :options="matieresList" optionLabel="libelle"
                             placeholder="Select Matiere" unstyled :pt="{
                                 root: { class: 'bg-white border border-solid border-green-300 rounded-lg inline-flex  ' },
@@ -114,6 +136,7 @@ const onSubmitFunction = () => {
                                 item: { class: 'py-3 px-5 bg-white hover:bg-green-100 cursor-pointer flex items-center overflow-hidden' },
 
                             }" />
+                        <span class="text-red-500 text-xs">{{ !object.matiere_id ? error.matiere_id : '' }}</span>
                     </div>
                 </div>
                 <div class="flex justify-between px-4 items-end">
@@ -124,4 +147,5 @@ const onSubmitFunction = () => {
                 </div>
             </div>
         </div>
-</div></template>
+    </div>
+</template>

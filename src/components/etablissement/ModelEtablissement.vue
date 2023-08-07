@@ -1,25 +1,49 @@
 <script setup>
-import { ref ,reactive} from 'vue'
+import { ref, reactive } from 'vue'
 import SvgIcon from '@jamescoyle/vue-icon';
 import { mdiClose } from '@mdi/js';
 import { modifierEtablissement, supprimerEtablissement } from '../../services/etablissementService.js'
-import {useRouter} from 'vue-router';
-const props = defineProps(['status', 'updateStatus','data'])
-const router=useRouter();
+import { useRouter } from 'vue-router';
+import { useToast } from 'primevue/usetoast';
+
+const toast = useToast();
+const props = defineProps(['status', 'updateStatus', 'data'])
+const router = useRouter();
 const object = reactive(props.data)
 const id = ref(object.id)
-
+const error = ref({})
 const inEdit = ref(false)
 
 
 // listener pour "onclick event" de delete et supprimer
 const onDelete = () => {
-    supprimerEtablissement(id.value).then(promise => { console.log(promise.data) })
-    .then(()=>{router.go()})
+    supprimerEtablissement(id.value).then(promise => {
+        toast.add({ severity: 'info', summary: 'Info', detail: promise.data.message, life: 4500 });
+    }).then(() => {
+        setTimeout(() => {
+            router.go()
+        }, 1000);
+    })
+        .catch(e => {
+            toast.add({ severity: 'error', summary: 'Error', detail: e.response.data.message, life: 4500 })
+
+        })
 }
 const onUpdate = () => {
-    modifierEtablissement(id.value, object).then(promise => { console.log(promise.data); })
-    .then(()=>{router.go()})
+    modifierEtablissement(id.value, object).then(promise => {
+        toast.add({ severity: 'success', summary: 'Success', detail: promise.data.message, life: 4500 });
+    }).then(() => {
+        setTimeout(() => {
+            router.go()
+        }, 1000);
+    })
+        .catch(e => {
+            if (!e.response.data?.message) {
+                error.value = e.response.data
+            } else {
+                toast.add({ severity: 'error', summary: 'Error', detail: e.response.data.message, life: 4500 })
+            };
+        })
 }
 
 </script>
@@ -27,6 +51,7 @@ const onUpdate = () => {
 <template>
     <div class="bg-[#0000002a] fixed w-[100%] left-0 top-0 min-h-[100vh] z-10 flex items-center justify-center"
         @click="props.updateStatus(false)">
+        <Toast />
         <div class="h-[50vh] w-[30%] flex flex-col justify-around rounded-[8px] translate-x-9 translate-y-2 shadow-lg bg-white
         p-10 overflow-x-auto " @click="(e) => { e.stopPropagation(); inEdit = false }">
             <div class="items-self-start  flex flex-col-reverse items-center justify-center ">
@@ -43,12 +68,18 @@ const onUpdate = () => {
                 <div v-else @dblclick="() => { inEdit = true }">{{ object.adresse ?? 'sans addresse' }}</div>
             </div>
             <div class='item'>
-                <label for="etablissement" class="font-bold">Libelle</label>
+                <label for="etablissement"
+                    class="font-bold after:content-['*'] after:ml-0.5 after:text-red-500">Libelle</label>
                 <div class="mt-2" v-if="inEdit">
-                    <input class="border-2 w-full border-green-300   focus:outline-none rounded-md p-1" type="text"
+                    <input @input="(e) => {
+                        if (e.target.value) {
+                            delete error.libelle
+                        }
+                    }" class="border-2 w-full border-green-300   focus:outline-none rounded-md p-1" type="text"
                         v-model="object.libelle" @click="(e) => { e.stopPropagation(); }">
                 </div>
                 <div v-else @dblclick="() => { inEdit = true }">{{ object.libelle }}</div>
+                <span class="text-red-500 text-xs">{{ error?.libelle }}</span>
             </div>
             <div class="flex justify-between">
                 <button @click="onDelete"
